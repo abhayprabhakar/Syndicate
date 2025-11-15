@@ -1,0 +1,88 @@
+# Global ignores for TrackShift Syndicate repo
+
+# Python bytecode & caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Packaging / build artifacts
+build/
+dist/
+.eggs/
+*.egg-info/
+.wheels/
+*.pex
+pip-wheel-metadata/
+
+# Virtual environments & dependency managers
+.venv/
+venv/
+env/
+ENV/
+.mypy_cache/
+.pytest_cache/
+
+# Notebooks
+.ipynb_checkpoints/
+*.nb.py
+
+# Logs & runtime traces
+logs/
+*.log
+coverage.xml
+htmlcov/
+.coverage*
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+*.envrc
+
+# IDE / editor state
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS-specific
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Generated assets & large artifacts
+outputs/
+services/ingestion/logs/
+services/ingestion/outputs/
+services/ingestion/minio_data/
+services/ingestion/uploads/
+services/ingestion/tmp/
+services/ingestion/testing/*.mp4
+
+# Large ML checkpoints (SAM, AnyChange, LoFTR, etc.)
+*.pth
+*.pt
+*.ckpt
+*.onnx
+*.bin
+*.safetensors
+services/ingestion/models/*.pth
+services/ingestion/models/*.pt
+services/ingestion/services/segmentation/**/*.pth
+services/ingestion/services/segmentation/**/*.pt
+
+# Data dumps / backups
+*.sqlite3
+*.db
+*.bak
+
+# Node / frontend
+node_modules/
+.npm/
+.cache/
+
+# Docker / compose state
+*.pid
+*.sock
+**/.docker-volume
