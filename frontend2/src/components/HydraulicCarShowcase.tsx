@@ -69,9 +69,11 @@ export function HydraulicCarShowcase() {
           initial={{ opacity: 0 }}
           animate={{ opacity: isLifted ? 1 : 0 }}
           transition={{ duration: 1, delay: 0.5 }}
+          key="car-model-container"
         >
           {/* 3D Car Model */}
           <CarModel3D 
+            key="car-model-3d"
             setIsDragging={setIsDragging}
             isLifted={isLifted}
           />

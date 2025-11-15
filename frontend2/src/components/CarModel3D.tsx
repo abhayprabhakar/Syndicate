@@ -16,7 +16,7 @@ function Model({ modelPath }: { modelPath: string }) {
   const gltf = useGLTF(modelPath);
 
   useEffect(() => {
-    if (modelRef.current) {
+    if (modelRef.current && gltf.scene) {
       // Center and scale the model
       const box = new THREE.Box3().setFromObject(modelRef.current);
       const center = box.getCenter(new THREE.Vector3());
@@ -30,7 +30,7 @@ function Model({ modelPath }: { modelPath: string }) {
       modelRef.current.position.y = (-center.y * scale) + 1.0; // Moved up
       modelRef.current.position.z = -center.z * scale;
     }
-  }, [gltf]);
+  }, [gltf, gltf.scene]);
 
   // Auto-rotation animation
   useFrame((_state, delta) => {

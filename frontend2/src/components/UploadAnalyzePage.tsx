@@ -151,27 +151,16 @@ export function UploadAnalyzePage({ onNavigate }: UploadAnalyzePageProps) {
         {/* Logo Section */}
         <div className="p-6 border-b border-red-900/30">
           <motion.div
-            className="flex items-center gap-3 cursor-pointer"
+            className="flex items-center justify-center cursor-pointer"
             onClick={() => onNavigate?.("home")}
             whileHover={{ scale: 1.05 }}
             transition={{ type: "spring", stiffness: 400 }}
           >
-            <div className="relative">
-              <div className="w-10 h-10 bg-gradient-to-br from-red-600 to-red-800 rounded flex items-center justify-center">
-                <Zap className="w-6 h-6 text-white" fill="white" />
-              </div>
-              <motion.div
-                className="absolute inset-0 bg-red-500 rounded blur-md opacity-50"
-                animate={{ opacity: [0.3, 0.6, 0.3] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-lg text-white tracking-wider" style={{ fontFamily: "system-ui" }}>
-                TRACKSHIFT AI
-              </span>
-              <div className="h-0.5 w-full bg-gradient-to-r from-red-600 to-transparent" />
-            </div>
+            <img 
+              src="/trackshift logo.png" 
+              alt="TrackShift Logo" 
+              className="h-15 w-auto object-contain"
+            />
           </motion.div>
         </div>
 

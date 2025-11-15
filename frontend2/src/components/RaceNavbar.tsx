@@ -27,22 +27,11 @@ export function RaceNavbar({ onNavigate }: RaceNavbarProps) {
           whileHover={{ scale: 1.05 }}
           transition={{ type: "spring", stiffness: 400 }}
         >
-          <div className="relative">
-            <div className="w-10 h-10 bg-gradient-to-br from-red-600 to-red-800 rounded flex items-center justify-center">
-              <Zap className="w-6 h-6 text-white" fill="white" />
-            </div>
-            <motion.div
-              className="absolute inset-0 bg-red-500 rounded blur-md opacity-50"
-              animate={{ opacity: [0.3, 0.6, 0.3] }}
-              transition={{ duration: 2, repeat: Infinity }}
-            />
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xl text-white tracking-wider" style={{ fontFamily: 'system-ui' }}>
-              TRACKSHIFT AI
-            </span>
-            <div className="h-0.5 w-full bg-gradient-to-r from-red-600 to-transparent" />
-          </div>
+          <img 
+            src="/trackshift logo.png" 
+            alt="TrackShift Logo" 
+            className="h-15 w-auto object-contain"
+          />
         </motion.div>
 
         {/* Navigation Items */}
