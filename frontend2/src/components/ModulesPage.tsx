@@ -18,16 +18,8 @@ export function ModulesPage({ onNavigate }: ModulesPageProps) {
       color: "from-red-500 to-red-600",
     },
     {
-      id: "coarse",
-      letter: "B",
-      name: "Coarse Detection",
-      description: "Identifies regions with potential differences using low-resolution analysis",
-      status: "running" as const,
-      color: "from-red-600 to-red-700",
-    },
-    {
       id: "segmentation",
-      letter: "C",
+      letter: "B",
       name: "Precise Segmentation",
       description: "Refines coarse detections with pixel-level accuracy using U-Net architecture",
       status: "idle" as const,
@@ -35,7 +27,7 @@ export function ModulesPage({ onNavigate }: ModulesPageProps) {
     },
     {
       id: "classification",
-      letter: "D",
+      letter: "C",
       name: "Change Classification",
       description: "Categorizes detected changes by type (color, shape, texture, position)",
       status: "completed" as const,
@@ -43,7 +35,7 @@ export function ModulesPage({ onNavigate }: ModulesPageProps) {
     },
     {
       id: "severity",
-      letter: "E",
+      letter: "D",
       name: "Severity Estimation",
       description: "Quantifies the importance and impact of each detected change",
       status: "idle" as const,
@@ -51,19 +43,11 @@ export function ModulesPage({ onNavigate }: ModulesPageProps) {
     },
     {
       id: "filter",
-      letter: "F",
+      letter: "E",
       name: "False-Positive Filter",
       description: "Removes noise and artifacts to improve detection accuracy",
       status: "completed" as const,
       color: "from-red-600 to-red-700",
-    },
-    {
-      id: "tracker",
-      letter: "G",
-      name: "Temporal Tracker",
-      description: "Tracks changes across multiple image sequences over time",
-      status: "idle" as const,
-      color: "from-white/70 to-white/50",
     },
   ];
 

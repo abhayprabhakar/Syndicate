@@ -15,7 +15,7 @@ export function ModuleDetailPage({ moduleId, onNavigate }: ModuleDetailPageProps
       name: "Alignment Module",
       color: "from-red-500 to-red-600",
       howItWorks: "Uses SIFT/ORB feature detection and RANSAC-based homography estimation to spatially align before and after images. Corrects for camera position, angle, and lens distortions.",
-      plugsIn: "First stage of the pipeline. Outputs aligned image pairs that serve as input for all downstream modules (B-G).",
+      plugsIn: "First stage of the pipeline. Outputs aligned image pairs that serve as input for all downstream modules (B-E).",
       modifications: "Added multi-scale feature detection for better alignment on high-resolution images. Implemented GPU acceleration for real-time processing.",
       metrics: {
         accuracy: "99.2%",
@@ -23,25 +23,12 @@ export function ModuleDetailPage({ moduleId, onNavigate }: ModuleDetailPageProps
         lastRun: "2 minutes ago",
       },
     },
-    coarse: {
-      letter: "B",
-      name: "Coarse Detection Module",
-      color: "from-red-600 to-red-700",
-      howItWorks: "Applies difference imaging and Gaussian blur to identify candidate regions. Uses adaptive thresholding to handle varying lighting conditions.",
-      plugsIn: "Receives aligned images from Module A. Outputs region proposals to Module C for precise segmentation.",
-      modifications: "Integrated histogram equalization preprocessing. Added configurable sensitivity thresholds for different use cases.",
-      metrics: {
-        accuracy: "94.8%",
-        avgTime: "0.8s",
-        lastRun: "5 minutes ago",
-      },
-    },
     segmentation: {
-      letter: "C",
+      letter: "B",
       name: "Precise Segmentation Module",
       color: "from-white/80 to-white/60",
-      howItWorks: "U-Net based semantic segmentation refines coarse regions to pixel-level accuracy. Uses ResNet-50 encoder pretrained on ImageNet.",
-      plugsIn: "Takes region proposals from Module B. Outputs precise change masks to Modules D and E.",
+      howItWorks: "U-Net based semantic segmentation refines regions to pixel-level accuracy. Uses ResNet-50 encoder pretrained on ImageNet.",
+      plugsIn: "Takes aligned images from Module A. Outputs precise change masks to Modules C and D.",
       modifications: "Fine-tuned on domain-specific datasets (F1 cars, manufacturing defects). Added attention mechanisms for better boundary detection.",
       metrics: {
         accuracy: "97.5%",
@@ -50,11 +37,11 @@ export function ModuleDetailPage({ moduleId, onNavigate }: ModuleDetailPageProps
       },
     },
     classification: {
-      letter: "D",
+      letter: "C",
       name: "Change Classification Module",
       color: "from-red-700 to-red-800",
       howItWorks: "Multi-class CNN classifier categorizes changes into types: color shift, shape modification, texture change, position adjustment, and addition/removal.",
-      plugsIn: "Receives segmentation masks from Module C. Classification results feed into Module E for severity scoring.",
+      plugsIn: "Receives segmentation masks from Module B. Classification results feed into Module D for severity scoring.",
       modifications: "Extended taxonomy to include 12 change types specific to industrial use cases. Improved performance on small changes.",
       metrics: {
         accuracy: "96.3%",
@@ -63,11 +50,11 @@ export function ModuleDetailPage({ moduleId, onNavigate }: ModuleDetailPageProps
       },
     },
     severity: {
-      letter: "E",
+      letter: "D",
       name: "Severity Estimation Module",
       color: "from-red-500 to-red-600",
       howItWorks: "Quantifies change importance using spatial extent, intensity, and contextual relevance. Outputs severity scores from 0-100.",
-      plugsIn: "Takes classified changes from Module D and segmentation masks from Module C. Feeds results to visualization layer.",
+      plugsIn: "Takes classified changes from Module C and segmentation masks from Module B. Feeds results to visualization layer.",
       modifications: "Implemented domain-specific weighting (e.g., aerodynamic changes in F1 scored higher). Added user-configurable severity rules.",
       metrics: {
         accuracy: "93.7%",
@@ -76,11 +63,11 @@ export function ModuleDetailPage({ moduleId, onNavigate }: ModuleDetailPageProps
       },
     },
     filter: {
-      letter: "F",
+      letter: "E",
       name: "False-Positive Filter Module",
       color: "from-red-600 to-red-700",
       howItWorks: "Uses ensemble methods and confidence scoring to remove artifacts, shadows, reflections, and noise-based detections.",
-      plugsIn: "Post-processes outputs from all detection modules. Final clean results go to Module G and reporting.",
+      plugsIn: "Post-processes outputs from all detection modules. Final clean results go to reporting and visualization.",
       modifications: "Added learned filters using historical false-positive data. Improved shadow/lighting compensation algorithms.",
       metrics: {
         accuracy: "98.1%",
@@ -88,29 +75,14 @@ export function ModuleDetailPage({ moduleId, onNavigate }: ModuleDetailPageProps
         lastRun: "3 minutes ago",
       },
     },
-    tracker: {
-      letter: "G",
-      name: "Temporal Tracker Module",
-      color: "from-white/70 to-white/50",
-      howItWorks: "Tracks detected changes across image sequences using Kalman filtering and feature matching. Maintains change IDs over time.",
-      plugsIn: "Final stage. Aggregates outputs from Modules C-F across multiple time points for trend analysis.",
-      modifications: "Implemented long-term tracking with re-identification. Added trajectory prediction for progressive changes.",
-      metrics: {
-        accuracy: "95.4%",
-        avgTime: "1.7s",
-        lastRun: "30 minutes ago",
-      },
-    },
   };
 
   const allModules = [
     { id: "alignment", name: "Alignment", letter: "A" },
-    { id: "coarse", name: "Coarse Detection", letter: "B" },
-    { id: "segmentation", name: "Precise Segmentation", letter: "C" },
-    { id: "classification", name: "Change Classification", letter: "D" },
-    { id: "severity", name: "Severity Estimation", letter: "E" },
-    { id: "filter", name: "False-Positive Filter", letter: "F" },
-    { id: "tracker", name: "Temporal Tracker", letter: "G" },
+    { id: "segmentation", name: "Precise Segmentation", letter: "B" },
+    { id: "classification", name: "Change Classification", letter: "C" },
+    { id: "severity", name: "Severity Estimation", letter: "D" },
+    { id: "filter", name: "False-Positive Filter", letter: "E" },
   ];
 
   const currentModule = moduleData[moduleId];
