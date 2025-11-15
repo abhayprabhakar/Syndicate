@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Zap,
@@ -15,12 +15,18 @@ import {
   PenTool,
   ArrowRight,
   X,
+  Loader2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Switch } from "./ui/switch";
 import { Label } from "./ui/label";
+import { pollResults } from "../services/api";
+import { toast } from "sonner";
+
+// API Base URL for constructing image URLs
+const API_BASE_URL = 'https://giovanna-unpredatory-ronin.ngrok-free.dev';
 
 interface ImageComparisonPageProps {
   onNavigate?: (page: string, analysisMode?: string, selectedRegion?: any) => void;
@@ -47,6 +53,178 @@ export function ImageComparisonPage({ onNavigate, beforeImage, afterImage }: Ima
   const [selectedRegion, setSelectedRegion] = useState<any>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [drawingTool, setDrawingTool] = useState<"rectangle" | "freeform">("rectangle");
+
+  // API integration state
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState("Initializing...");
+  const [processedBeforeImage, setProcessedBeforeImage] = useState<string | null>(null);
+  const [processedAfterImage, setProcessedAfterImage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // Load results from API on mount
+  useEffect(() => {
+    const jobId = sessionStorage.getItem("currentJobId");
+    
+    if (!jobId) {
+      setError("No job ID found. Please upload images first.");
+      setIsLoading(false);
+      toast.error("No job ID found");
+      return;
+    }
+
+    console.log("Starting polling for job:", jobId);
+
+    // Start polling for results
+    pollResults(jobId, (progress) => {
+      console.log("Progress update:", progress);
+      setLoadingProgress(progress);
+    })
+      .then((data) => {
+        console.log("Pipeline completed, full response:", data);
+        
+        if (data.status === "complete" && data.results) {
+          console.log("Results object:", data.results);
+          console.log("Number of changes:", data.results.num_changes);
+          
+          // Strategy 1: Check if backend returned base64 encoded combined image
+          if (data.results.classified_changes_base64) {
+            console.log("✅ Found base64 image data, length:", data.results.classified_changes_base64.length);
+            
+            // Create data URL from base64
+            const imgDataUrl = `data:image/png;base64,${data.results.classified_changes_base64}`;
+            
+            // Load image to split into before/after
+            const img = new Image();
+            img.onload = () => {
+              console.log("Image loaded, dimensions:", img.width, "x", img.height);
+              
+              const canvas = document.createElement('canvas');
+              const ctx = canvas.getContext('2d');
+              
+              if (ctx) {
+                const halfWidth = img.width / 2;
+                console.log("Splitting at width:", halfWidth);
+                
+                // Extract before image (left half)
+                canvas.width = halfWidth;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0, halfWidth, img.height, 0, 0, halfWidth, img.height);
+                const beforeDataUrl = canvas.toDataURL('image/png');
+                setProcessedBeforeImage(beforeDataUrl);
+                console.log("✅ Before image extracted");
+                
+                // Extract after image (right half)
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, halfWidth, 0, halfWidth, img.height, 0, 0, halfWidth, img.height);
+                const afterDataUrl = canvas.toDataURL('image/png');
+                setProcessedAfterImage(afterDataUrl);
+                console.log("✅ After image extracted");
+                
+                setIsLoading(false);
+                toast.success(`Images processed! ${data.results.num_changes} changes detected.`);
+              }
+            };
+            img.onerror = () => {
+              console.error("❌ Failed to load base64 image");
+              setError("Failed to decode processed image");
+              setIsLoading(false);
+              toast.error("Failed to decode processed image");
+            };
+            img.src = imgDataUrl;
+          } 
+          // Check if backend returned a single combined image URL
+          else if (data.results.classified_changes_url) {
+            const classifiedImageUrl = data.results.classified_changes_url;
+            
+            // Load the combined image and split it into before/after
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.onload = () => {
+              // Create canvas to split the image
+              const canvas = document.createElement('canvas');
+              const ctx = canvas.getContext('2d');
+              
+              if (ctx) {
+                const halfWidth = img.width / 2;
+                
+                // Extract before image (left half)
+                canvas.width = halfWidth;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0, halfWidth, img.height, 0, 0, halfWidth, img.height);
+                const beforeDataUrl = canvas.toDataURL('image/png');
+                setProcessedBeforeImage(beforeDataUrl);
+                
+                // Extract after image (right half)
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, halfWidth, 0, halfWidth, img.height, 0, 0, halfWidth, img.height);
+                const afterDataUrl = canvas.toDataURL('image/png');
+                setProcessedAfterImage(afterDataUrl);
+                
+                setIsLoading(false);
+                toast.success(`Images processed! ${data.results.num_changes} changes detected.`);
+              }
+            };
+            img.onerror = () => {
+              setError("Failed to load processed images from URL");
+              setIsLoading(false);
+              toast.error("Failed to load processed images");
+            };
+            img.src = classifiedImageUrl;
+          }
+          // Try to construct URL from job_id
+          else if (data.results.num_changes !== undefined) {
+            // Backend has results but no image URL, try to construct it
+            const imageUrl = `${API_BASE_URL}/outputs/${jobId}_classified.png`;
+            console.log("Trying constructed URL:", imageUrl);
+            
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.onload = () => {
+              const canvas = document.createElement('canvas');
+              const ctx = canvas.getContext('2d');
+              
+              if (ctx) {
+                const halfWidth = img.width / 2;
+                canvas.width = halfWidth;
+                canvas.height = img.height;
+                
+                // Before (left)
+                ctx.drawImage(img, 0, 0, halfWidth, img.height, 0, 0, halfWidth, img.height);
+                setProcessedBeforeImage(canvas.toDataURL('image/png'));
+                
+                // After (right)
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, halfWidth, 0, halfWidth, img.height, 0, 0, halfWidth, img.height);
+                setProcessedAfterImage(canvas.toDataURL('image/png'));
+                
+                setIsLoading(false);
+                toast.success(`Images processed! ${data.results.num_changes} changes detected.`);
+              }
+            };
+            img.onerror = () => {
+              setError("Processing complete but images not accessible. Check backend output.");
+              setIsLoading(false);
+              toast.error("Images processed but display failed");
+            };
+            img.src = imageUrl;
+          } else {
+            setError("Backend returned incomplete results");
+            setIsLoading(false);
+            toast.error("No processed images found in results");
+          }
+        } else if (data.status === "failed") {
+          setError(data.error || "Processing failed");
+          setIsLoading(false);
+          toast.error("Processing failed: " + (data.error || "Unknown error"));
+        }
+      })
+      .catch((err) => {
+        console.error("Polling error:", err);
+        setError(`Failed to retrieve results: ${err.message}`);
+        setIsLoading(false);
+        toast.error("Failed to retrieve results");
+      });
+  }, []);
 
   // Mock change highlights (would come from AI model)
   const changeHighlights = [
@@ -293,6 +471,7 @@ export function ImageComparisonPage({ onNavigate, beforeImage, afterImage }: Ima
                       variant="ghost"
                       onClick={() => setFullscreenImage("before")}
                       className="text-white/60 hover:text-white hover:bg-white/10"
+                      disabled={isLoading}
                     >
                       <Maximize2 className="w-4 h-4" />
                     </Button>
@@ -305,42 +484,32 @@ export function ImageComparisonPage({ onNavigate, beforeImage, afterImage }: Ima
                       style={{ transform: `scale(${zoom / 100})`, transformOrigin: "top left" }}
                     >
                       <div className="aspect-video flex items-center justify-center bg-gradient-to-br from-gray-900 to-black relative">
-                        {/* Placeholder for actual image */}
-                        <div className="text-white/40 text-center">
-                          <div className="w-16 h-16 mx-auto mb-2 bg-white/10 rounded flex items-center justify-center">
-                            <Upload className="w-8 h-8" />
+                        {/* Loading State */}
+                        {isLoading && (
+                          <div className="text-white text-center">
+                            <div className="w-16 h-16 mx-auto mb-4 border-4 border-white/20 border-t-red-600 rounded-full animate-spin" />
+                            <p className="text-lg mb-2">Processing Images...</p>
+                            <p className="text-sm text-white/60">{loadingProgress}</p>
                           </div>
-                          <p>Before Image Preview</p>
-                        </div>
+                        )}
 
-                        {/* Change Highlights Overlay */}
-                        {showHighlights && (
-                          <div className="absolute inset-0">
-                            {changeHighlights.map((highlight, index) => (
-                              <div
-                                key={index}
-                                className="absolute border-2 rounded"
-                                style={{
-                                  left: highlight.x,
-                                  top: highlight.y,
-                                  width: highlight.width,
-                                  height: highlight.height,
-                                  borderColor: getSeverityColor(highlight.severity),
-                                  backgroundColor: `${getSeverityColor(highlight.severity)}20`,
-                                }}
-                              >
-                                <Badge
-                                  className="absolute -top-6 left-0 text-xs"
-                                  style={{
-                                    backgroundColor: getSeverityColor(highlight.severity),
-                                    color: "white",
-                                  }}
-                                >
-                                  {highlight.label}
-                                </Badge>
-                              </div>
-                            ))}
+                        {/* Error State */}
+                        {error && !isLoading && (
+                          <div className="text-red-400 text-center">
+                            <div className="w-16 h-16 mx-auto mb-2 bg-red-500/10 rounded flex items-center justify-center">
+                              <X className="w-8 h-8" />
+                            </div>
+                            <p>{error}</p>
                           </div>
+                        )}
+
+                        {/* Processed Image */}
+                        {!isLoading && !error && processedBeforeImage && (
+                          <img 
+                            src={processedBeforeImage} 
+                            alt="Before - Processed" 
+                            className="w-full h-full object-contain"
+                          />
                         )}
 
                         {/* Selected Region Overlay */}
@@ -372,9 +541,9 @@ export function ImageComparisonPage({ onNavigate, beforeImage, afterImage }: Ima
                     </div>
                   </div>
                   <div className="mt-3 space-y-1">
-                    <p className="text-white/80 text-sm">Timestamp: 2025-11-15 14:30:18</p>
+                    <p className="text-white/80 text-sm">Status: {isLoading ? "Processing..." : error ? "Error" : "Complete"}</p>
                     <p className="text-white/60 text-sm">Source: Manual Upload</p>
-                    <p className="text-white/60 text-sm">Resolution: 1920x1080</p>
+                    {!isLoading && !error && <p className="text-white/60 text-sm">AI-Classified Changes Detected</p>}
                   </div>
                 </CardContent>
               </Card>
@@ -389,6 +558,7 @@ export function ImageComparisonPage({ onNavigate, beforeImage, afterImage }: Ima
                       variant="ghost"
                       onClick={() => setFullscreenImage("after")}
                       className="text-white/60 hover:text-white hover:bg-white/10"
+                      disabled={isLoading}
                     >
                       <Maximize2 className="w-4 h-4" />
                     </Button>
@@ -400,41 +570,41 @@ export function ImageComparisonPage({ onNavigate, beforeImage, afterImage }: Ima
                       className="relative"
                       style={{ transform: `scale(${zoom / 100})`, transformOrigin: "top left" }}
                     >
-                      <div className="aspect-video flex items-center justify-center bg-gradient-to-br from-gray-900 to-black">
-                        {/* Placeholder for actual image */}
-                        <div className="text-white/40 text-center">
-                          <div className="w-16 h-16 mx-auto mb-2 bg-white/10 rounded flex items-center justify-center">
-                            <Upload className="w-8 h-8" />
+                      <div className="aspect-video flex items-center justify-center bg-gradient-to-br from-gray-900 to-black relative">
+                        {/* Loading State */}
+                        {isLoading && (
+                          <div className="text-white text-center">
+                            <div className="w-16 h-16 mx-auto mb-4 border-4 border-white/20 border-t-red-600 rounded-full animate-spin" />
+                            <p className="text-lg mb-2">Processing Images...</p>
+                            <p className="text-sm text-white/60">{loadingProgress}</p>
                           </div>
-                          <p>After Image Preview</p>
-                        </div>
+                        )}
 
-                        {/* Change Highlights Overlay */}
-                        {showHighlights && (
-                          <div className="absolute inset-0">
-                            {changeHighlights.map((highlight, index) => (
-                              <div
-                                key={index}
-                                className="absolute border-2 rounded"
-                                style={{
-                                  left: highlight.x,
-                                  top: highlight.y,
-                                  width: highlight.width,
-                                  height: highlight.height,
-                                  borderColor: getSeverityColor(highlight.severity),
-                                  backgroundColor: `${getSeverityColor(highlight.severity)}20`,
-                                }}
-                              />
-                            ))}
+                        {/* Error State */}
+                        {error && !isLoading && (
+                          <div className="text-red-400 text-center">
+                            <div className="w-16 h-16 mx-auto mb-2 bg-red-500/10 rounded flex items-center justify-center">
+                              <X className="w-8 h-8" />
+                            </div>
+                            <p>{error}</p>
                           </div>
+                        )}
+
+                        {/* Processed Image */}
+                        {!isLoading && !error && processedAfterImage && (
+                          <img 
+                            src={processedAfterImage} 
+                            alt="After - Processed" 
+                            className="w-full h-full object-contain"
+                          />
                         )}
                       </div>
                     </div>
                   </div>
                   <div className="mt-3 space-y-1">
-                    <p className="text-white/80 text-sm">Timestamp: 2025-11-15 16:45:32</p>
+                    <p className="text-white/80 text-sm">Status: {isLoading ? "Processing..." : error ? "Error" : "Complete"}</p>
                     <p className="text-white/60 text-sm">Source: Manual Upload</p>
-                    <p className="text-white/60 text-sm">Resolution: 1920x1080</p>
+                    {!isLoading && !error && <p className="text-white/60 text-sm">AI-Classified Changes Detected</p>}
                   </div>
                 </CardContent>
               </Card>

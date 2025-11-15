@@ -20,6 +20,7 @@ import { Label } from "./ui/label";
 import { Switch } from "./ui/switch";
 import { Badge } from "./ui/badge";
 import { toast } from "sonner";
+import { uploadPipeline } from "../services/api";
 
 interface UploadAnalyzePageProps {
   onNavigate?: (page: string) => void;
@@ -45,6 +46,8 @@ export function UploadAnalyzePage({ onNavigate }: UploadAnalyzePageProps) {
   // Manual upload state
   const [beforeImage, setBeforeImage] = useState<File | null>(null);
   const [afterImage, setAfterImage] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [jobId, setJobId] = useState<string | null>(null);
   
   // Automatic capture state
   const [selectedCameras, setSelectedCameras] = useState<string[]>([]);
@@ -96,17 +99,38 @@ export function UploadAnalyzePage({ onNavigate }: UploadAnalyzePageProps) {
   };
 
   // Handle continue to preview
-  const handleContinueToPreview = () => {
+  const handleContinueToPreview = async () => {
     if (!beforeImage || !afterImage) {
       toast.error("Please upload both before and after images");
       return;
     }
-    toast.success("Images uploaded successfully");
+
+    setIsUploading(true);
     
-    // Redirect to image comparison preview
-    setTimeout(() => {
-      onNavigate?.("image-comparison");
-    }, 800);
+    try {
+      toast.loading("Uploading images to pipeline...");
+      
+      // Call the API to upload and process images
+      const result = await uploadPipeline(beforeImage, afterImage);
+      
+      if (result.job_id) {
+        setJobId(result.job_id);
+        toast.success("Images uploaded successfully! Processing started...");
+        
+        // Navigate to image comparison page with jobId
+        setTimeout(() => {
+          onNavigate?.("image-comparison");
+          // Store jobId in sessionStorage for the next page
+          sessionStorage.setItem("currentJobId", result.job_id);
+        }, 800);
+      } else {
+        throw new Error("No job ID returned from server");
+      }
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast.error("Failed to upload images. Please try again.");
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -410,11 +434,20 @@ export function UploadAnalyzePage({ onNavigate }: UploadAnalyzePageProps) {
                   {/* Continue Button */}
                   <Button
                     onClick={handleContinueToPreview}
-                    disabled={!beforeImage || !afterImage}
+                    disabled={!beforeImage || !afterImage || isUploading}
                     className="w-full bg-red-600 hover:bg-red-700 text-white py-6 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Continue to Preview
-                    <ArrowRight className="w-5 h-5 ml-2" />
+                    {isUploading ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                        Uploading & Processing...
+                      </>
+                    ) : (
+                      <>
+                        Continue to Preview
+                        <ArrowRight className="w-5 h-5 ml-2" />
+                      </>
+                    )}
                   </Button>
                 </CardContent>
               </Card>
