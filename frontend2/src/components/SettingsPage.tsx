@@ -13,22 +13,18 @@ export function SettingsPage() {
   const [layoutDensity, setLayoutDensity] = useState("comfortable");
   const [enabledModules, setEnabledModules] = useState({
     alignment: true,
-    coarse: true,
     segmentation: true,
     classification: true,
     severity: true,
     filter: true,
-    tracker: false,
   });
 
   const modules = [
     { id: "alignment", name: "Alignment Module (A)", description: "Spatial image alignment" },
-    { id: "coarse", name: "Coarse Detection (B)", description: "Region-level difference detection" },
-    { id: "segmentation", name: "Precise Segmentation (C)", description: "Pixel-level refinement" },
-    { id: "classification", name: "Change Classification (D)", description: "Change type categorization" },
-    { id: "severity", name: "Severity Estimation (E)", description: "Impact quantification" },
-    { id: "filter", name: "False-Positive Filter (F)", description: "Noise removal" },
-    { id: "tracker", name: "Temporal Tracker (G)", description: "Multi-frame tracking" },
+    { id: "segmentation", name: "Precise Segmentation (B)", description: "Pixel-level refinement" },
+    { id: "classification", name: "Change Classification (C)", description: "Change type categorization" },
+    { id: "severity", name: "Severity Estimation (D)", description: "Impact quantification" },
+    { id: "filter", name: "False-Positive Filter (E)", description: "Noise removal" },
   ];
 
   return (
