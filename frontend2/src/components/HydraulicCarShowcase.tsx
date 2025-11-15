@@ -1,14 +1,10 @@
-import { useEffect, useRef, useState } from "react";
-import { motion, useMotionValue, useTransform } from "motion/react";
-import { ImageWithFallback } from "./figma/ImageWithFallback";
+import { useEffect, useState } from "react";
+import { motion } from "motion/react";
+import { CarModel3D } from "./CarModel3D";
 
 export function HydraulicCarShowcase() {
   const [isLifted, setIsLifted] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const constraintsRef = useRef(null);
-  
-  const rotateY = useMotionValue(0);
-  const scale = useTransform(rotateY, [-200, 0, 200], [0.95, 1, 0.95]);
 
   useEffect(() => {
     // Trigger lift animation after component mounts
@@ -17,16 +13,6 @@ export function HydraulicCarShowcase() {
     }, 500);
     return () => clearTimeout(timer);
   }, []);
-
-  useEffect(() => {
-    // Auto-rotate when not dragging
-    if (!isDragging && isLifted) {
-      const interval = setInterval(() => {
-        rotateY.set((rotateY.get() + 0.5) % 360);
-      }, 30);
-      return () => clearInterval(interval);
-    }
-  }, [isDragging, isLifted, rotateY]);
 
   return (
     <div className="relative w-full h-[600px] flex items-center justify-center overflow-hidden">
@@ -77,98 +63,45 @@ export function HydraulicCarShowcase() {
           ))}
         </div>
 
-        {/* Interactive Car Container */}
+        {/* Interactive 3D Car Model Container */}
         <motion.div
-          ref={constraintsRef}
-          className="relative cursor-grab active:cursor-grabbing"
-          style={{
-            perspective: 1200,
-          }}
+          className="relative"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: isLifted ? 1 : 0 }}
+          transition={{ duration: 1, delay: 0.5 }}
         >
+          {/* 3D Car Model */}
+          <CarModel3D 
+            setIsDragging={setIsDragging}
+            isLifted={isLifted}
+          />
+
+          {/* Tire Glow Effects */}
           <motion.div
-            drag="x"
-            dragConstraints={constraintsRef}
-            dragElastic={0.1}
-            onDragStart={() => setIsDragging(true)}
-            onDragEnd={() => setIsDragging(false)}
-            onDrag={(_, info) => {
-              rotateY.set(rotateY.get() + info.delta.x * 0.5);
+            className="absolute bottom-[25%] left-[20%] w-24 h-24 bg-white rounded-full opacity-10 blur-xl pointer-events-none"
+            animate={{
+              opacity: [0.05, 0.15, 0.05],
+              scale: [1, 1.1, 1],
             }}
-            style={{
-              rotateY,
-              scale,
-              transformStyle: "preserve-3d",
+            transition={{
+              duration: 1.5,
+              repeat: Infinity,
+              ease: "easeInOut"
             }}
-            className="relative"
-          >
-            {/* F1 Car Image */}
-            <motion.div
-              className="relative w-[800px] h-[500px] flex items-center justify-center"
-              animate={{
-                filter: isLifted 
-                  ? ["brightness(0.8)", "brightness(1)", "brightness(0.8)"]
-                  : "brightness(0.8)",
-              }}
-              transition={{
-                duration: 3,
-                repeat: Infinity,
-                ease: "easeInOut"
-              }}
-            >
-              <ImageWithFallback
-                src="https://images.unsplash.com/photo-1758742250570-fd039e3aafa6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxmb3JtdWxhJTIwMSUyMHJhY2UlMjBjYXIlMjBmcm9udHxlbnwxfHx8fDE3NjA5NTQwMDd8MA&ixlib=rb-4.1.0&q=80&w=1080"
-                alt="F1 Race Car"
-                className="w-full h-full object-contain drop-shadow-2xl"
-              />
-
-              {/* Glowing Accents */}
-              <motion.div
-                className="absolute inset-0 pointer-events-none"
-                animate={{
-                  opacity: [0.3, 0.6, 0.3],
-                }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
-              >
-                {/* Front Lights */}
-                <div className="absolute top-1/2 left-[15%] w-4 h-4 bg-red-500 rounded-full blur-md" />
-                <div className="absolute top-1/2 right-[15%] w-4 h-4 bg-red-500 rounded-full blur-md" />
-                
-                {/* Rear Wing Glow */}
-                <div className="absolute top-[30%] left-1/2 -translate-x-1/2 w-32 h-1 bg-red-600 blur-sm" />
-              </motion.div>
-
-              {/* Tire Glow Effects */}
-              <motion.div
-                className="absolute bottom-[25%] left-[20%] w-24 h-24 bg-white rounded-full opacity-10 blur-xl"
-                animate={{
-                  opacity: [0.05, 0.15, 0.05],
-                  scale: [1, 1.1, 1],
-                }}
-                transition={{
-                  duration: 1.5,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
-              />
-              <motion.div
-                className="absolute bottom-[25%] right-[20%] w-24 h-24 bg-white rounded-full opacity-10 blur-xl"
-                animate={{
-                  opacity: [0.05, 0.15, 0.05],
-                  scale: [1, 1.1, 1],
-                }}
-                transition={{
-                  duration: 1.5,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                  delay: 0.3
-                }}
-              />
-            </motion.div>
-          </motion.div>
+          />
+          <motion.div
+            className="absolute bottom-[25%] right-[20%] w-24 h-24 bg-white rounded-full opacity-10 blur-xl pointer-events-none"
+            animate={{
+              opacity: [0.05, 0.15, 0.05],
+              scale: [1, 1.1, 1],
+            }}
+            transition={{
+              duration: 1.5,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: 0.3
+            }}
+          />
         </motion.div>
 
         {/* Ground Shadow */}
