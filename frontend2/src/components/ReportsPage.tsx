@@ -4,9 +4,12 @@ import { Card, CardContent } from "./ui/card";
 import { Button } from "./ui/button";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { motion } from "motion/react";
+import { downloadPDFReport } from "../services/api";
+import { toast } from "sonner";
 
 export function ReportsPage() {
   const [animated, setAnimated] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -23,6 +26,30 @@ export function ReportsPage() {
     hour: '2-digit',
     minute: '2-digit'
   });
+
+  // Handle PDF download
+  const handleDownloadPDF = async () => {
+    setIsDownloading(true);
+    try {
+      // Get job_id from sessionStorage (set during upload)
+      const jobId = sessionStorage.getItem("currentJobId");
+      
+      if (!jobId) {
+        toast.error("No analysis job found. Please complete an analysis first.");
+        setIsDownloading(false);
+        return;
+      }
+
+      toast.loading("Generating PDF report...");
+      await downloadPDFReport(jobId);
+      toast.success("PDF report downloaded successfully!");
+    } catch (error) {
+      console.error("Failed to download PDF:", error);
+      toast.error("Failed to generate PDF report. Please try again.");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   const CircularMetric = ({ value, label, icon: Icon }: { value: number; label: string; icon: any }) => {
     const circumference = 2 * Math.PI * 50;
@@ -306,14 +333,27 @@ export function ReportsPage() {
         transition={{ duration: 0.6, delay: 0.7 }}
       >
         {/* Export Button */}
-        <Button className="px-16 py-6 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white relative overflow-hidden group shadow-[0_0_40px_rgba(225,6,0,0.4)]">
+        <Button 
+          className="px-16 py-6 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white relative overflow-hidden group shadow-[0_0_40px_rgba(225,6,0,0.4)] disabled:opacity-50 disabled:cursor-not-allowed"
+          onClick={handleDownloadPDF}
+          disabled={isDownloading}
+        >
           <motion.div
             className="absolute inset-0 bg-red-500 blur-2xl opacity-0 group-hover:opacity-70"
             transition={{ duration: 0.3 }}
           />
           <span className="relative z-10 flex items-center gap-3 tracking-wider uppercase">
-            <Download className="w-6 h-6" />
-            Export as PDF
+            {isDownloading ? (
+              <>
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Generating PDF...
+              </>
+            ) : (
+              <>
+                <Download className="w-6 h-6" />
+                Export as PDF
+              </>
+            )}
           </span>
           {/* Animated border */}
           <motion.div

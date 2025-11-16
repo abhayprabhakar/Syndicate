@@ -231,3 +231,43 @@ export function fileToBase64(file: File): Promise<string> {
     reader.readAsDataURL(file);
   });
 }
+
+/**
+ * Download PDF report for a completed job
+ */
+export async function downloadPDFReport(jobId: string): Promise<void> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/v1/ingest/report/${jobId}`, {
+      method: 'GET',
+      headers: {
+        'ngrok-skip-browser-warning': 'true'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to download report: ${response.statusText}`);
+    }
+
+    // Get the PDF blob
+    const blob = await response.blob();
+    
+    // Create a download link
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `F1_Analysis_Report_${jobId.substring(0, 8)}.pdf`;
+    
+    // Trigger download
+    document.body.appendChild(link);
+    link.click();
+    
+    // Cleanup
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+    
+    console.log('✅ PDF report downloaded successfully');
+  } catch (error) {
+    console.error('❌ Failed to download PDF report:', error);
+    throw error;
+  }
+}
