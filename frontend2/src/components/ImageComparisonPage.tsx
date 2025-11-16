@@ -66,151 +66,121 @@ export function ImageComparisonPage({ onNavigate, beforeImage, afterImage }: Ima
     const jobId = sessionStorage.getItem("currentJobId");
     
     if (!jobId) {
+      console.error("❌ No job_id found in sessionStorage");
       setError("No job ID found. Please upload images first.");
       setIsLoading(false);
       toast.error("No job ID found");
       return;
     }
 
-    console.log("Starting polling for job:", jobId);
+    console.log("🚀 IMAGE COMPARISON PAGE LOADED");
+    console.log("📋 Job ID from sessionStorage:", jobId);
+    console.log("🔗 Backend URL:", API_BASE_URL);
 
     // Start polling for results
     pollResults(jobId, (progress) => {
-      console.log("Progress update:", progress);
+      console.log("📈 Progress update:", progress);
       setLoadingProgress(progress);
     })
-      .then((data) => {
-        console.log("Pipeline completed, full response:", data);
+      .then(async (data) => {
+        console.log("🎉 PIPELINE COMPLETED!");
+        console.log("📦 Full response data:", JSON.stringify(data, null, 2));
         
-        if (data.status === "complete" && data.results) {
-          console.log("Results object:", data.results);
-          console.log("Number of changes:", data.results.num_changes);
+        if (data.status === "complete" || data.status === "completed") {
+          console.log("✅ Status confirmed as completed");
+          console.log("📊 Results object:", data.results);
+          console.log("🔢 Number of changes:", data.results?.num_changes);
+          console.log("🖼️ Image URLs object:", data.image_urls);
           
-          // Strategy 1: Check if backend returned base64 encoded combined image
-          if (data.results.classified_changes_base64) {
-            console.log("✅ Found base64 image data, length:", data.results.classified_changes_base64.length);
+          // Fetch the annotated images from separate endpoints
+          try {
+            console.log("🖼️ Starting image fetch process...");
+            setLoadingProgress("Downloading baseline image...");
             
-            // Create data URL from base64
-            const imgDataUrl = `data:image/png;base64,${data.results.classified_changes_base64}`;
+            // Construct full URLs for images
+            const baselineImageUrl = `${API_BASE_URL}/images/${jobId}/baseline`;
+            const currentImageUrl = `${API_BASE_URL}/images/${jobId}/current`;
             
-            // Load image to split into before/after
-            const img = new Image();
-            img.onload = () => {
-              console.log("Image loaded, dimensions:", img.width, "x", img.height);
-              
-              const canvas = document.createElement('canvas');
-              const ctx = canvas.getContext('2d');
-              
-              if (ctx) {
-                const halfWidth = img.width / 2;
-                console.log("Splitting at width:", halfWidth);
-                
-                // Extract before image (left half)
-                canvas.width = halfWidth;
-                canvas.height = img.height;
-                ctx.drawImage(img, 0, 0, halfWidth, img.height, 0, 0, halfWidth, img.height);
-                const beforeDataUrl = canvas.toDataURL('image/png');
-                setProcessedBeforeImage(beforeDataUrl);
-                console.log("✅ Before image extracted");
-                
-                // Extract after image (right half)
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(img, halfWidth, 0, halfWidth, img.height, 0, 0, halfWidth, img.height);
-                const afterDataUrl = canvas.toDataURL('image/png');
-                setProcessedAfterImage(afterDataUrl);
-                console.log("✅ After image extracted");
-                
-                setIsLoading(false);
-                toast.success(`Images processed! ${data.results.num_changes} changes detected.`);
+            console.log("📥 Fetching BASELINE image from:", baselineImageUrl);
+            
+            // Fetch baseline image
+            const baselineResponse = await fetch(baselineImageUrl, {
+              headers: {
+                'ngrok-skip-browser-warning': 'true'
               }
-            };
-            img.onerror = () => {
-              console.error("❌ Failed to load base64 image");
-              setError("Failed to decode processed image");
-              setIsLoading(false);
-              toast.error("Failed to decode processed image");
-            };
-            img.src = imgDataUrl;
-          } 
-          // Check if backend returned a single combined image URL
-          else if (data.results.classified_changes_url) {
-            const classifiedImageUrl = data.results.classified_changes_url;
+            });
             
-            // Load the combined image and split it into before/after
-            const img = new Image();
-            img.crossOrigin = "anonymous";
-            img.onload = () => {
-              // Create canvas to split the image
-              const canvas = document.createElement('canvas');
-              const ctx = canvas.getContext('2d');
-              
-              if (ctx) {
-                const halfWidth = img.width / 2;
-                
-                // Extract before image (left half)
-                canvas.width = halfWidth;
-                canvas.height = img.height;
-                ctx.drawImage(img, 0, 0, halfWidth, img.height, 0, 0, halfWidth, img.height);
-                const beforeDataUrl = canvas.toDataURL('image/png');
-                setProcessedBeforeImage(beforeDataUrl);
-                
-                // Extract after image (right half)
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(img, halfWidth, 0, halfWidth, img.height, 0, 0, halfWidth, img.height);
-                const afterDataUrl = canvas.toDataURL('image/png');
-                setProcessedAfterImage(afterDataUrl);
-                
-                setIsLoading(false);
-                toast.success(`Images processed! ${data.results.num_changes} changes detected.`);
-              }
-            };
-            img.onerror = () => {
-              setError("Failed to load processed images from URL");
-              setIsLoading(false);
-              toast.error("Failed to load processed images");
-            };
-            img.src = classifiedImageUrl;
-          }
-          // Try to construct URL from job_id
-          else if (data.results.num_changes !== undefined) {
-            // Backend has results but no image URL, try to construct it
-            const imageUrl = `${API_BASE_URL}/outputs/${jobId}_classified.png`;
-            console.log("Trying constructed URL:", imageUrl);
+            if (!baselineResponse.ok) {
+              throw new Error(`Failed to fetch baseline image: ${baselineResponse.statusText}`);
+            }
             
-            const img = new Image();
-            img.crossOrigin = "anonymous";
-            img.onload = () => {
-              const canvas = document.createElement('canvas');
-              const ctx = canvas.getContext('2d');
-              
-              if (ctx) {
-                const halfWidth = img.width / 2;
-                canvas.width = halfWidth;
-                canvas.height = img.height;
-                
-                // Before (left)
-                ctx.drawImage(img, 0, 0, halfWidth, img.height, 0, 0, halfWidth, img.height);
-                setProcessedBeforeImage(canvas.toDataURL('image/png'));
-                
-                // After (right)
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(img, halfWidth, 0, halfWidth, img.height, 0, 0, halfWidth, img.height);
-                setProcessedAfterImage(canvas.toDataURL('image/png'));
-                
-                setIsLoading(false);
-                toast.success(`Images processed! ${data.results.num_changes} changes detected.`);
+            // Convert response to blob
+            const baselineBlob = await baselineResponse.blob();
+            
+            // Create blob URL immediately for instant display
+            const baselineUrl = URL.createObjectURL(baselineBlob);
+            console.log("✅ BASELINE image loaded successfully!");
+            console.log("🎨 Baseline blob URL:", baselineUrl);
+            console.log("📦 Baseline blob size:", baselineBlob.size, "bytes");
+            setProcessedBeforeImage(baselineUrl);
+            
+            // Save baseline image to local folder
+            const baselineLink = document.createElement('a');
+            baselineLink.href = baselineUrl;
+            baselineLink.download = `baseline_annotated_${jobId}.png`;
+            baselineLink.style.display = 'none';
+            document.body.appendChild(baselineLink);
+            baselineLink.click();
+            document.body.removeChild(baselineLink);
+            console.log("💾 Baseline image saved to Downloads folder:", `baseline_annotated_${jobId}.png`);
+            
+            setLoadingProgress("Downloading current image...");
+            console.log("📥 Fetching CURRENT image from:", currentImageUrl);
+            
+            // Fetch current image
+            const currentResponse = await fetch(currentImageUrl, {
+              headers: {
+                'ngrok-skip-browser-warning': 'true'
               }
-            };
-            img.onerror = () => {
-              setError("Processing complete but images not accessible. Check backend output.");
-              setIsLoading(false);
-              toast.error("Images processed but display failed");
-            };
-            img.src = imageUrl;
-          } else {
-            setError("Backend returned incomplete results");
+            });
+            
+            if (!currentResponse.ok) {
+              throw new Error(`Failed to fetch current image: ${currentResponse.statusText}`);
+            }
+            
+            // Convert response to blob
+            const currentBlob = await currentResponse.blob();
+            
+            // Create blob URL immediately for instant display
+            const currentUrl = URL.createObjectURL(currentBlob);
+            console.log("✅ CURRENT image loaded successfully!");
+            console.log("🎨 Current blob URL:", currentUrl);
+            console.log("📦 Current blob size:", currentBlob.size, "bytes");
+            setProcessedAfterImage(currentUrl);
+            
+            // Save current image to local folder
+            const currentLink = document.createElement('a');
+            currentLink.href = currentUrl;
+            currentLink.download = `current_annotated_${jobId}.png`;
+            currentLink.style.display = 'none';
+            document.body.appendChild(currentLink);
+            currentLink.click();
+            document.body.removeChild(currentLink);
+            console.log("💾 Current image saved to Downloads folder:", `current_annotated_${jobId}.png`);
+            
+            console.log("🎊 ALL IMAGES LOADED AND DISPLAYED!");
+            console.log("🖼️ Before image state:", processedBeforeImage ? "SET" : "NOT SET");
+            console.log("🖼️ After image state:", processedAfterImage ? "SET" : "NOT SET");
+            
             setIsLoading(false);
-            toast.error("No processed images found in results");
+            const numChanges = data.results?.num_changes || 0;
+            toast.success(`Images processed! ${numChanges} changes detected. Images saved to Downloads folder.`);
+            
+          } catch (imageError: any) {
+            console.error("Failed to load images:", imageError);
+            setError(`Failed to load images: ${imageError.message}`);
+            setIsLoading(false);
+            toast.error("Failed to load processed images");
           }
         } else if (data.status === "failed") {
           setError(data.error || "Processing failed");

@@ -108,26 +108,38 @@ export function UploadAnalyzePage({ onNavigate }: UploadAnalyzePageProps) {
     setIsUploading(true);
     
     try {
+      console.log("📤 Uploading images to pipeline...");
+      console.log("📁 Before image:", beforeImage.name, beforeImage.size, "bytes");
+      console.log("📁 After image:", afterImage.name, afterImage.size, "bytes");
+      
       toast.loading("Uploading images to pipeline...");
       
       // Call the API to upload and process images
       const result = await uploadPipeline(beforeImage, afterImage);
       
+      console.log("✅ Upload successful!");
+      console.log("🆔 JOB ID:", result.job_id);
+      console.log("📝 Server response:", result);
+      
       if (result.job_id) {
         setJobId(result.job_id);
+        
+        // Store jobId in sessionStorage FIRST
+        sessionStorage.setItem("currentJobId", result.job_id);
+        console.log("💾 Job ID saved to sessionStorage:", result.job_id);
+        
         toast.success("Images uploaded successfully! Processing started...");
         
         // Navigate to image comparison page with jobId
         setTimeout(() => {
+          console.log("🔄 Navigating to image-comparison page...");
           onNavigate?.("image-comparison");
-          // Store jobId in sessionStorage for the next page
-          sessionStorage.setItem("currentJobId", result.job_id);
         }, 800);
       } else {
         throw new Error("No job ID returned from server");
       }
     } catch (error) {
-      console.error("Upload error:", error);
+      console.error("❌ Upload error:", error);
       toast.error("Failed to upload images. Please try again.");
       setIsUploading(false);
     }

@@ -13,7 +13,7 @@ export interface PipelineResponse {
 
 export interface JobResult {
   job_id: string;
-  status: 'queued' | 'processing' | 'complete' | 'failed';
+  status: 'queued' | 'processing' | 'complete' | 'completed' | 'failed';
   progress?: string;
   results?: {
     job_id: string;
@@ -25,6 +25,11 @@ export interface JobResult {
       part: string;
       confidence: number;
     }>;
+  };
+  image_urls?: {
+    baseline: string;
+    current: string;
+    combined: string;
   };
   error?: string;
 }
@@ -110,25 +115,33 @@ export async function pollJobUntilComplete(
   onProgress?: (progress: string, status: string) => void,
   pollInterval: number = 2000
 ): Promise<JobResult> {
+  console.log(`🔄 Starting polling for job_id: ${jobId}`);
+  
   return new Promise((resolve, reject) => {
     const interval = setInterval(async () => {
       try {
         const result = await getJobResults(jobId);
+        console.log(`📊 Poll response - Status: ${result.status}, Progress: ${result.progress || 'N/A'}`);
 
         // Update progress callback
         if (onProgress) {
           onProgress(result.progress || 'Processing...', result.status);
         }
 
-        // Check if completed
-        if (result.status === 'complete') {
+        // Check if completed (backend returns "completed" not "complete")
+        if (result.status === 'complete' || result.status === 'completed') {
+          console.log(`✅ Pipeline COMPLETED for job_id: ${jobId}`);
+          console.log(`📦 Results:`, result.results);
+          console.log(`🖼️ Image URLs:`, result.image_urls);
           clearInterval(interval);
           resolve(result);
         } else if (result.status === 'failed') {
+          console.error(`❌ Pipeline FAILED for job_id: ${jobId}`, result.error);
           clearInterval(interval);
           reject(new Error(result.error || 'Pipeline failed'));
         }
       } catch (error) {
+        console.error(`⚠️ Polling error for job_id: ${jobId}`, error);
         clearInterval(interval);
         reject(error);
       }
@@ -161,24 +174,49 @@ export async function uploadPipeline(
 }
 
 /**
- * Get annotated images from completed job
- * Note: This is a helper - backend should return base64 images in results
+ * Get annotated image as blob URL
+ */
+export async function getAnnotatedImage(
+  jobId: string,
+  imageType: 'baseline' | 'current' | 'combined'
+): Promise<string> {
+  const response = await fetch(`${API_BASE_URL}/images/${jobId}/${imageType}`, {
+    method: 'GET',
+    headers: {
+      'ngrok-skip-browser-warning': 'true'
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to get ${imageType} image: ${response.statusText}`);
+  }
+
+  // Convert response to blob and create object URL
+  const blob = await response.blob();
+  return URL.createObjectURL(blob);
+}
+
+/**
+ * Get all three annotated images from completed job
  */
 export async function getAnnotatedImages(jobId: string): Promise<ImageData> {
-  // For now, return mock data structure
-  // Backend will need to include base64 images in /results endpoint
   const result = await getJobResults(jobId);
   
-  if (result.status !== 'complete') {
+  if (result.status !== 'complete' && result.status !== 'completed') {
     throw new Error('Job not completed yet');
   }
 
-  // TODO: Backend should include base64 images in response
+  // Fetch all three images in parallel
+  const [baselineUrl, currentUrl] = await Promise.all([
+    getAnnotatedImage(jobId, 'baseline'),
+    getAnnotatedImage(jobId, 'current')
+  ]);
+
   return {
-    beforeImage: '', // Will be populated by backend
-    afterImage: '',
-    beforeImageAnnotated: '', // Annotated version
-    afterImageAnnotated: ''
+    beforeImage: baselineUrl,
+    afterImage: currentUrl,
+    beforeImageAnnotated: baselineUrl,
+    afterImageAnnotated: currentUrl
   };
 }
 

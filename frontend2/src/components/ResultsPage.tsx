@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Zap,
@@ -45,6 +45,9 @@ import {
 } from "recharts";
 import { toast } from "sonner";
 
+// API Base URL
+const API_BASE_URL = 'https://giovanna-unpredatory-ronin.ngrok-free.dev';
+
 interface ResultsPageProps {
   onNavigate?: (page: string) => void;
   isAutoCapture?: boolean;
@@ -65,6 +68,107 @@ export function ResultsPage({ onNavigate, isAutoCapture = false, analysisMode = 
   // State
   const [showChangeIntensityPrediction, setShowChangeIntensityPrediction] = useState(true);
   const [expandedParts, setExpandedParts] = useState<string[]>([]);
+  
+  // ✅ NEW: State for alignment images
+  const [baselineOriginal, setBaselineOriginal] = useState<string | null>(null);
+  const [currentUnaligned, setCurrentUnaligned] = useState<string | null>(null);
+  const [alignmentOverlay, setAlignmentOverlay] = useState<string | null>(null);
+  const [isLoadingImages, setIsLoadingImages] = useState(true);
+  const [imageError, setImageError] = useState<string | null>(null);
+
+  // ✅ NEW: Fetch alignment images on mount
+  useEffect(() => {
+    const jobId = sessionStorage.getItem("currentJobId");
+    
+    if (!jobId) {
+      console.log("⚠️ No job_id found for ResultsPage");
+      setIsLoadingImages(false);
+      return;
+    }
+
+    console.log("🖼️ ResultsPage: Fetching alignment images for job_id:", jobId);
+
+    const fetchAlignmentImages = async () => {
+      try {
+        // Fetch baseline original
+        console.log("📥 Fetching baseline_original...");
+        const baselineResponse = await fetch(`${API_BASE_URL}/images/${jobId}/baseline_original`, {
+          headers: { 'ngrok-skip-browser-warning': 'true' }
+        });
+        
+        if (baselineResponse.ok) {
+          const baselineBlob = await baselineResponse.blob();
+          const baselineUrl = URL.createObjectURL(baselineBlob);
+          setBaselineOriginal(baselineUrl);
+          console.log("✅ Baseline original loaded!");
+          
+          // Auto-download
+          const link = document.createElement('a');
+          link.href = baselineUrl;
+          link.download = `baseline_original_${jobId}.jpg`;
+          link.click();
+          console.log("💾 Baseline original saved to Downloads");
+        } else {
+          console.warn("⚠️ baseline_original not found (might not be generated yet)");
+        }
+
+        // Fetch current unaligned
+        console.log("📥 Fetching current_unaligned...");
+        const currentResponse = await fetch(`${API_BASE_URL}/images/${jobId}/current_unaligned`, {
+          headers: { 'ngrok-skip-browser-warning': 'true' }
+        });
+        
+        if (currentResponse.ok) {
+          const currentBlob = await currentResponse.blob();
+          const currentUrl = URL.createObjectURL(currentBlob);
+          setCurrentUnaligned(currentUrl);
+          console.log("✅ Current unaligned loaded!");
+          
+          // Auto-download
+          const link = document.createElement('a');
+          link.href = currentUrl;
+          link.download = `current_unaligned_${jobId}.jpg`;
+          link.click();
+          console.log("💾 Current unaligned saved to Downloads");
+        } else {
+          console.warn("⚠️ current_unaligned not found");
+        }
+
+        // Fetch alignment overlay
+        console.log("📥 Fetching alignment_overlay...");
+        const overlayResponse = await fetch(`${API_BASE_URL}/images/${jobId}/alignment_overlay`, {
+          headers: { 'ngrok-skip-browser-warning': 'true' }
+        });
+        
+        if (overlayResponse.ok) {
+          const overlayBlob = await overlayResponse.blob();
+          const overlayUrl = URL.createObjectURL(overlayBlob);
+          setAlignmentOverlay(overlayUrl);
+          console.log("✅ Alignment overlay loaded!");
+          
+          // Auto-download
+          const link = document.createElement('a');
+          link.href = overlayUrl;
+          link.download = `alignment_overlay_${jobId}.jpg`;
+          link.click();
+          console.log("💾 Alignment overlay saved to Downloads");
+        } else {
+          console.warn("⚠️ alignment_overlay not found");
+        }
+
+        setIsLoadingImages(false);
+        toast.success("Alignment images loaded successfully!");
+
+      } catch (error: any) {
+        console.error("❌ Failed to load alignment images:", error);
+        setImageError(error.message);
+        setIsLoadingImages(false);
+        toast.error("Failed to load alignment images");
+      }
+    };
+
+    fetchAlignmentImages();
+  }, []);
 
   // Metrics data
   const metricsCards = [
@@ -380,42 +484,97 @@ export function ResultsPage({ onNavigate, isAutoCapture = false, analysisMode = 
                   {/* Before Image */}
                   <div>
                     <div className="aspect-video bg-black/50 rounded-lg border border-red-600/20 flex items-center justify-center mb-3 overflow-hidden">
-                      <ImageIcon className="w-16 h-16 text-white/40" />
+                      {isLoadingImages ? (
+                        <div className="text-center">
+                          <div className="w-8 h-8 border-4 border-red-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                          <p className="text-white/60 text-sm">Loading...</p>
+                        </div>
+                      ) : baselineOriginal ? (
+                        <img 
+                          src={baselineOriginal} 
+                          alt="Baseline Original" 
+                          className="w-full h-full object-contain"
+                        />
+                      ) : (
+                        <div className="text-center">
+                          <ImageIcon className="w-16 h-16 text-white/40 mx-auto mb-2" />
+                          <p className="text-white/60 text-sm">Not available</p>
+                        </div>
+                      )}
                     </div>
                     <div className="space-y-1">
-                      <p className="text-white">Before Image</p>
-                      <p className="text-white/60 text-sm">2025-11-15 14:30:18</p>
+                      <p className="text-white font-semibold">Before Image</p>
+                      <p className="text-white/60 text-sm">2016 Baseline (Reference)</p>
                       <p className="text-white/60 text-sm">Manual Upload</p>
-                      <p className="text-white/60 text-sm">1920x1080</p>
+                      <p className="text-white/60 text-sm">Original unaligned</p>
                     </div>
                   </div>
 
                   {/* After Image */}
                   <div>
                     <div className="aspect-video bg-black/50 rounded-lg border border-red-600/20 flex items-center justify-center mb-3 overflow-hidden">
-                      <ImageIcon className="w-16 h-16 text-white/40" />
+                      {isLoadingImages ? (
+                        <div className="text-center">
+                          <div className="w-8 h-8 border-4 border-red-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                          <p className="text-white/60 text-sm">Loading...</p>
+                        </div>
+                      ) : currentUnaligned ? (
+                        <img 
+                          src={currentUnaligned} 
+                          alt="Current Unaligned" 
+                          className="w-full h-full object-contain"
+                        />
+                      ) : (
+                        <div className="text-center">
+                          <ImageIcon className="w-16 h-16 text-white/40 mx-auto mb-2" />
+                          <p className="text-white/60 text-sm">Not available</p>
+                        </div>
+                      )}
                     </div>
                     <div className="space-y-1">
-                      <p className="text-white">After Image</p>
-                      <p className="text-white/60 text-sm">2025-11-15 16:45:32</p>
+                      <p className="text-white font-semibold">After Image</p>
+                      <p className="text-white/60 text-sm">2025 Current (Unaligned)</p>
                       <p className="text-white/60 text-sm">Manual Upload</p>
-                      <p className="text-white/60 text-sm">1920x1080</p>
+                      <p className="text-white/60 text-sm">Before alignment</p>
                     </div>
                   </div>
 
                   {/* Aligned Overlay */}
                   <div>
                     <div className="aspect-video bg-black/50 rounded-lg border border-red-600/20 flex items-center justify-center mb-3 overflow-hidden relative">
-                      <ImageIcon className="w-16 h-16 text-white/40" />
-                      <Badge className="absolute top-2 right-2 bg-red-600 text-white border-0 text-xs">
-                        Aligned
-                      </Badge>
+                      {isLoadingImages ? (
+                        <div className="text-center">
+                          <div className="w-8 h-8 border-4 border-red-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                          <p className="text-white/60 text-sm">Loading...</p>
+                        </div>
+                      ) : alignmentOverlay ? (
+                        <>
+                          <img 
+                            src={alignmentOverlay} 
+                            alt="Alignment Overlay" 
+                            className="w-full h-full object-contain"
+                          />
+                          <Badge className="absolute top-2 right-2 bg-red-600 text-white border-0 text-xs">
+                            Aligned
+                          </Badge>
+                        </>
+                      ) : (
+                        <>
+                          <div className="text-center">
+                            <ImageIcon className="w-16 h-16 text-white/40 mx-auto mb-2" />
+                            <p className="text-white/60 text-sm">Not available</p>
+                          </div>
+                          <Badge className="absolute top-2 right-2 bg-red-600 text-white border-0 text-xs">
+                            Aligned
+                          </Badge>
+                        </>
+                      )}
                     </div>
                     <div className="space-y-1">
-                      <p className="text-white">Aligned Overlay</p>
-                      <p className="text-white/60 text-sm">Difference visualization</p>
-                      <p className="text-white/60 text-sm">Registration: 98.7%</p>
-                      <p className="text-white/60 text-sm">Algorithm: SIFT</p>
+                      <p className="text-white font-semibold">Aligned Overlay</p>
+                      <p className="text-white/60 text-sm">Red=2016, Green=2025</p>
+                      <p className="text-white/60 text-sm">Gray = Perfect alignment</p>
+                      <p className="text-white/60 text-sm">Algorithm: LoFTR</p>
                     </div>
                   </div>
                 </div>
