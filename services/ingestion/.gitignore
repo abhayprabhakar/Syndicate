@@ -68,3 +68,28 @@ minio_data/
 
 # Uploaded files
 uploads/
+
+# Generated PDFs and reports
+*.pdf
+reports/
+output/
+
+# Test files
+*test*.py
+testing/
+tests/
+generate_*.py
+generate_*.bat
+generate_*.sh
+
+# Artifacts and models (large files)
+artifacts/checkpoints/
+artifacts/models/
+*.pth
+*.onnx
+*.pkl
+
+# Data files
+data/
+images/
+smoke-images/

@@ -46,6 +46,15 @@ pyyaml>=6.0.1
 prometheus-client>=0.19.0
 structlog>=24.1.0
 
+# PDF Generation
+reportlab>=4.0.7
+pypdf2>=3.0.1
+matplotlib>=3.8.0
+numpy>=1.24.0
+
+# AI Analysis
+google-generativeai>=0.3.0
+
 # Testing
 pytest>=7.4.4
 pytest-asyncio>=0.23.3
